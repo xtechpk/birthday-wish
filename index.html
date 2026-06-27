@@ -41,8 +41,8 @@
     }
 
     @keyframes cardRise {
-      0%   { transform: translate3d(-50%, 30px, 0) scale(0.9); opacity: 0; }
-      100% { transform: translate3d(-50%, -90px, 0) scale(1);  opacity: 1; }
+      0%   { transform: translate3d(-50%, 10px, 0) scale(0.88); opacity: 0; }
+      100% { transform: translate3d(-50%, -165px, 0) scale(1);  opacity: 1; }
     }
 
     @keyframes particleBurst {
@@ -206,7 +206,7 @@
       padding: 14px 16px;
       text-align: center;
       opacity: 0;
-      z-index: 2;
+      z-index: 5;
       box-shadow: 0 8px 30px rgba(0,0,0,0.35);
       pointer-events: none;
     }
@@ -233,8 +233,24 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 2.5rem 1.25rem;
+      padding: 2.5rem 1.25rem 5rem;
       position: relative;
+    }
+
+    @media screen and (max-height: 750px) {
+      .story-section {
+        justify-content: flex-start;
+        padding-top: 2rem;
+        padding-bottom: 5rem;
+      }
+    }
+
+    @media screen and (max-width: 480px) {
+      .story-section {
+        padding-left: 1rem;
+        padding-right: 1rem;
+        padding-bottom: 5.5rem;
+      }
     }
 
     .story-card {
@@ -306,6 +322,14 @@
     #muteBtn:active { transform: scale(0.88); }
 
     /* ── FINAL CARD ── */
+    #phase3 {
+      background: transparent;
+      transition: background 0.75s ease;
+    }
+    #phase3.active {
+      background: radial-gradient(ellipse at 50% 35%, #2d0a5e 0%, #0d0118 55%, #000 100%);
+    }
+
     #finalCard {
       position: fixed;
       left: 50%; top: 50%;
@@ -343,7 +367,9 @@
     .nring {
       position:absolute; border-radius:50%; border:2px solid;
       left:0; top:0;
-      animation: neonRingExpand var(--rd,3s) ease-out var(--rdelay,0s) infinite;
+      transform: translate(-50%,-50%) scale(0.72);
+      opacity: 0;
+      animation: neonRingExpand var(--rd,3s) ease-out var(--rdelay,0s) infinite backwards;
     }
     .nring-1 { width:330px; height:225px; border-color:rgba(167,139,250,0.7); --rd:3.2s; --rdelay:0s;   }
     .nring-2 { width:400px; height:272px; border-color:rgba(249,168,212,0.5); --rd:3.2s; --rdelay:1.07s; }
@@ -680,6 +706,54 @@
       transform: scale(0.95);
       transition: transform 0.12s ease;
     }
+
+    /* ── MOBILE: shift envelope + rings slightly upward ── */
+    @media screen and (max-width: 480px) {
+      .env-host {
+        transform: translate3d(-50%, -58%, 0);
+      }
+      .neon-rings {
+        top: 44%;
+      }
+    }
+
+    /* ── SAFE-AREA dots for iPhone home-indicator ── */
+    #p2Dots {
+      bottom: max(16px, env(safe-area-inset-bottom, 16px));
+    }
+    #tapHint {
+      bottom: max(5rem, calc(env(safe-area-inset-bottom, 0px) + 5rem));
+    }
+
+    /* ── LYRICS BOX ── */
+    #lyricsBox {
+      position: fixed;
+      top: 72px;
+      left: 0; right: 0;
+      text-align: center;
+      z-index: 52;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+    #lyricsBox.show { opacity: 1; }
+    #lyricsText {
+      display: inline-block;
+      background: rgba(255,255,255,0.10);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 999px;
+      padding: 7px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      letter-spacing: 0.04em;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.3);
+      transition: transform 0.35s cubic-bezier(0.34,1.5,0.64,1);
+    }
+    #lyricsBox.show #lyricsText { transform: scale(1); }
+    #lyricsBox #lyricsText       { transform: scale(0.85); }
   </style>
 </head>
 
@@ -713,6 +787,11 @@
     aria-label="Toggle music"
     onclick="toggleMute()">🔊
   </button>
+
+  <!-- Synced lyrics overlay (shown during Happy Birthday song) -->
+  <div id="lyricsBox">
+    <div id="lyricsText"></div>
+  </div>
 
   <!-- ════════════════════════════════
        PHASE 1 — ENVELOPE
@@ -1468,21 +1547,44 @@
     if (audioCtx) return;
     audioCtx   = new (window.AudioContext || window.webkitAudioContext)();
     masterGain = audioCtx.createGain();
-    masterGain.gain.value = 0.28;
+    masterGain.gain.value = 0.42;
     masterGain.connect(audioCtx.destination);
   }
 
-  function note(freq, t, dur, vol=0.28) {
+  function note(freq, t, dur, vol=0.38) {
+    // Main tone — triangle wave is warm, like a music box
     const osc = audioCtx.createOscillator();
     const env = audioCtx.createGain();
-    osc.type = 'sine';
+    osc.type = 'triangle';
     osc.frequency.value = freq;
     env.gain.setValueAtTime(0, t);
-    env.gain.linearRampToValueAtTime(vol, t + 0.04);
-    env.gain.setValueAtTime(vol * 0.8, t + dur * 0.7);
-    env.gain.linearRampToValueAtTime(0, t + dur);
+    env.gain.linearRampToValueAtTime(vol, t + 0.025);      // quick attack
+    env.gain.setValueAtTime(vol * 0.72, t + dur * 0.55);
+    env.gain.linearRampToValueAtTime(0, t + dur * 1.05);
     osc.connect(env); env.connect(masterGain);
-    osc.start(t); osc.stop(t + dur + 0.05);
+    osc.start(t); osc.stop(t + dur * 1.1 + 0.05);
+
+    // Octave-up harmonic for sparkle
+    const osc2 = audioCtx.createOscillator();
+    const env2 = audioCtx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.value = freq * 2;
+    env2.gain.setValueAtTime(0, t);
+    env2.gain.linearRampToValueAtTime(vol * 0.18, t + 0.018);
+    env2.gain.linearRampToValueAtTime(0, t + dur * 0.45);
+    osc2.connect(env2); env2.connect(masterGain);
+    osc2.start(t); osc2.stop(t + dur + 0.05);
+
+    // Sub sine for body
+    const osc3 = audioCtx.createOscillator();
+    const env3 = audioCtx.createGain();
+    osc3.type = 'sine';
+    osc3.frequency.value = freq * 0.5;
+    env3.gain.setValueAtTime(0, t);
+    env3.gain.linearRampToValueAtTime(vol * 0.12, t + 0.03);
+    env3.gain.linearRampToValueAtTime(0, t + dur * 0.6);
+    osc3.connect(env3); env3.connect(masterGain);
+    osc3.start(t); osc3.stop(t + dur + 0.05);
   }
 
   // "Happy Birthday to You" in C major
@@ -1501,11 +1603,34 @@
   ];
   const SONG_DUR = 13200;
 
+  const LYRICS = [
+    { t: 0,     text: '🎵 Happy Birthday to you...',      dur: 2700 },
+    { t: 3000,  text: '🎵 Happy Birthday to you...',      dur: 2700 },
+    { t: 6000,  text: '🎂 Happy Birthday dear Aniya 🌸',  dur: 3500 },
+    { t: 9500,  text: '🎵 Happy Birthday to you! 🎉',     dur: 3200 },
+  ];
+
+  function showLyric(text, dur) {
+    const box = document.getElementById('lyricsBox');
+    const el  = document.getElementById('lyricsText');
+    if (!box || !el) return;
+    el.textContent = text;
+    box.classList.add('show');
+    setTimeout(() => box.classList.remove('show'), dur - 300);
+  }
+
+  function startLyrics() {
+    LYRICS.forEach(({ t, text, dur }) => {
+      setTimeout(() => showLyric(text, dur), t);
+    });
+  }
+
   function playSong() {
     if (!audioCtx || songPlaying) return;
     songPlaying = true;
     const now = audioCtx.currentTime;
     SONG.forEach(([f, t, d]) => note(f, now + t, d));
+    startLyrics();
     songTimer = setTimeout(() => {
       songPlaying = false;
       if (!isMuted) playSong();
@@ -1849,11 +1974,20 @@
      FINALE — CONFETTI + GLASS CARD
   ────────────────────────────────────────────── */
   function showFinale() {
+    const p2 = document.getElementById('phase2');
     const p3 = document.getElementById('phase3');
+
+    // Fade Phase 2 (cake + all sections) out cleanly
+    p2.style.transition = 'opacity 0.65s ease';
+    p2.style.opacity    = '0';
+    p2.style.pointerEvents = 'none';
+
+    // Bring Phase 3 on top with its own dark background
     p3.classList.remove('hidden');
     p3.style.pointerEvents = 'all';
+    requestAnimationFrame(() => requestAnimationFrame(() => p3.classList.add('active')));
 
-    // Stop ambient layer (prevent z-index overlap)
+    // Stop ambient layer
     clearInterval(ambientTimer);
     clearInterval(balloonTimer);
 
